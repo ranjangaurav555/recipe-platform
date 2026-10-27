@@ -4,10 +4,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Add Recipe - Recipe Platform</title>
+    <title>Recipe Management Platform</title>
 
     <style>
-        * { box-sizing: border-box; }
+        * {
+            box-sizing: border-box;
+        }
 
         body {
             margin: 0;
@@ -25,7 +27,9 @@
             box-shadow: 0 4px 18px #00000015;
         }
 
-        h1 { color: #247a4b; }
+        h1 {
+            color: #247a4b;
+        }
 
         label {
             display: block;
@@ -55,15 +59,24 @@
             margin-top: 20px;
         }
 
-        #message { overflow-wrap: anywhere; }
+        button:hover {
+            background: #195e38;
+        }
 
-        a { color: #247a4b; }
+        #message {
+            overflow-wrap: anywhere;
+        }
+
+        a {
+            color: #247a4b;
+        }
     </style>
 </head>
 
 <body>
     <div class="container">
-        <h1>Add a New Recipe</h1>
+        <h1 id="pageTitle">Add a New Recipe</h1>
+
         <p><a href="/home">Back to Home</a></p>
 
         <form id="recipeForm">
@@ -113,15 +126,60 @@
                 accept="image/jpeg,image/png,image/webp"
             >
 
-            <button type="submit">Save Recipe</button>
+            <button id="submitButton" type="submit">Save Recipe</button>
         </form>
 
         <p id="message"></p>
     </div>
 
     <script>
+        const API_URL = "/api/recipes";
+
         const form = document.getElementById("recipeForm");
         const message = document.getElementById("message");
+        const pageTitle = document.getElementById("pageTitle");
+        const submitButton = document.getElementById("submitButton");
+
+        // Get selected recipe from the home page
+        let editRecipe = null;
+
+        try {
+            const savedRecipe = sessionStorage.getItem("editRecipe");
+
+            if (savedRecipe) {
+                editRecipe = JSON.parse(savedRecipe);
+            }
+        } catch (error) {
+            console.error("Unable to read recipe data:", error);
+        }
+
+        // Fill the form when editing
+        if (editRecipe && editRecipe.id) {
+            pageTitle.textContent = "Edit Recipe";
+            submitButton.textContent = "Update Recipe";
+
+            document.getElementById("title").value =
+                editRecipe.title || "";
+
+            document.getElementById("description").value =
+                editRecipe.description || "";
+
+            const ingredients = editRecipe.ingredients;
+
+            document.getElementById("ingredients").value =
+                Array.isArray(ingredients)
+                    ? ingredients.join(", ")
+                    : ingredients || "";
+
+            document.getElementById("instructions").value =
+                editRecipe.instructions || "";
+
+            document.getElementById("category").value =
+                editRecipe.category || "";
+
+            document.getElementById("cookingTime").value =
+                editRecipe.cookingTime || "";
+        }
 
         form.addEventListener("submit", async function (event) {
             event.preventDefault();
@@ -129,14 +187,14 @@
             const token = localStorage.getItem("recipeToken");
 
             if (!token) {
-                message.textContent = "Please login before adding a recipe.";
+                message.textContent = "Please login first.";
+                window.location.href = "/login.html";
                 return;
             }
 
-            const ingredientsText =
-                document.getElementById("ingredients").value;
-
-            const ingredients = ingredientsText
+            const ingredients = document
+                .getElementById("ingredients")
+                .value
                 .split(",")
                 .map(item => item.trim())
                 .filter(Boolean);
@@ -148,12 +206,35 @@
 
             const formData = new FormData();
 
-            formData.append("title", document.getElementById("title").value.trim());
-            formData.append("description", document.getElementById("description").value.trim());
-            formData.append("ingredients", JSON.stringify(ingredients));
-            formData.append("instructions", document.getElementById("instructions").value.trim());
-            formData.append("category", document.getElementById("category").value);
-            formData.append("cookingTime", document.getElementById("cookingTime").value);
+            formData.append(
+                "title",
+                document.getElementById("title").value.trim()
+            );
+
+            formData.append(
+                "description",
+                document.getElementById("description").value.trim()
+            );
+
+            formData.append(
+                "ingredients",
+                JSON.stringify(ingredients)
+            );
+
+            formData.append(
+                "instructions",
+                document.getElementById("instructions").value.trim()
+            );
+
+            formData.append(
+                "category",
+                document.getElementById("category").value
+            );
+
+            formData.append(
+                "cookingTime",
+                document.getElementById("cookingTime").value
+            );
 
             const image = document.getElementById("image").files[0];
 
@@ -161,9 +242,23 @@
                 formData.append("image", image);
             }
 
+            // Choose POST for new recipes and PUT for edits
+            const isEditing = Boolean(editRecipe && editRecipe.id);
+
+            const url = isEditing
+                ? `${API_URL}/${editRecipe.id}`
+                : API_URL;
+
+            const method = isEditing ? "PUT" : "POST";
+
+            submitButton.disabled = true;
+            message.textContent = isEditing
+                ? "Updating recipe..."
+                : "Saving recipe...";
+
             try {
-                const response = await fetch("/api/recipes", {
-                    method: "POST",
+                const response = await fetch(url, {
+                    method,
                     headers: {
                         Authorization: `Bearer ${token}`
                     },
@@ -173,15 +268,37 @@
                 const data = await response.json();
 
                 if (!response.ok) {
-                    message.textContent = data.message || "Unable to save recipe.";
+                    message.textContent =
+                        data.message ||
+                        (isEditing
+                            ? "Unable to update recipe."
+                            : "Unable to save recipe.");
+
                     return;
                 }
 
-                message.textContent = "Recipe saved successfully!";
+                message.textContent = isEditing
+                    ? "Recipe updated successfully!"
+                    : "Recipe saved successfully!";
+
+                sessionStorage.removeItem("editRecipe");
                 form.reset();
+                editRecipe = null;
+
+                pageTitle.textContent = "Add a New Recipe";
+                submitButton.textContent = "Save Recipe";
+
+                setTimeout(() => {
+                    window.location.href = "/home";
+                }, 1000);
+
             } catch (error) {
-                console.error(error);
-                message.textContent = "Server connection failed.";
+                console.error("Recipe save/update error:", error);
+
+                message.textContent =
+                    "Server connection failed.";
+            } finally {
+                submitButton.disabled = false;
             }
         });
     </script>
