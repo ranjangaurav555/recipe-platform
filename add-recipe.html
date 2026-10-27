@@ -1,0 +1,189 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Recipe - Recipe Platform</title>
+
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            padding: 25px 15px;
+            background: #f2f6f2;
+            font-family: Arial, sans-serif;
+        }
+
+        .container {
+            max-width: 650px;
+            margin: auto;
+            padding: 25px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 18px #00000015;
+        }
+
+        h1 { color: #247a4b; }
+
+        label {
+            display: block;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+
+        input, textarea, select, button {
+            width: 100%;
+            padding: 12px;
+            margin-top: 7px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 15px;
+        }
+
+        textarea {
+            min-height: 90px;
+            resize: vertical;
+        }
+
+        button {
+            background: #247a4b;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        #message { overflow-wrap: anywhere; }
+
+        a { color: #247a4b; }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Add a New Recipe</h1>
+        <p><a href="/home">Back to Home</a></p>
+
+        <form id="recipeForm">
+            <label for="title">Recipe Title</label>
+            <input id="title" name="title" required>
+
+            <label for="description">Description</label>
+            <textarea id="description" name="description" required></textarea>
+
+            <label for="ingredients">Ingredients</label>
+            <textarea
+                id="ingredients"
+                name="ingredients"
+                placeholder="Paneer, Tomato, Butter"
+                required
+            ></textarea>
+
+            <label for="instructions">Cooking Instructions</label>
+            <textarea id="instructions" name="instructions" required></textarea>
+
+            <label for="category">Category</label>
+            <select id="category" name="category" required>
+                <option value="">Select category</option>
+                <option value="Breakfast">Breakfast</option>
+                <option value="Lunch">Lunch</option>
+                <option value="Dinner">Dinner</option>
+                <option value="Dessert">Dessert</option>
+                <option value="Indian">Indian</option>
+                <option value="Other">Other</option>
+            </select>
+
+            <label for="cookingTime">Cooking Time (minutes)</label>
+            <input
+                id="cookingTime"
+                name="cookingTime"
+                type="number"
+                min="1"
+                step="1"
+                required
+            >
+
+            <label for="image">Recipe Image (optional)</label>
+            <input
+                id="image"
+                name="image"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+            >
+
+            <button type="submit">Save Recipe</button>
+        </form>
+
+        <p id="message"></p>
+    </div>
+
+    <script>
+        const form = document.getElementById("recipeForm");
+        const message = document.getElementById("message");
+
+        form.addEventListener("submit", async function (event) {
+            event.preventDefault();
+
+            const token = localStorage.getItem("recipeToken");
+
+            if (!token) {
+                message.textContent = "Please login before adding a recipe.";
+                return;
+            }
+
+            const ingredientsText =
+                document.getElementById("ingredients").value;
+
+            const ingredients = ingredientsText
+                .split(",")
+                .map(item => item.trim())
+                .filter(Boolean);
+
+            if (ingredients.length === 0) {
+                message.textContent = "Please enter ingredients.";
+                return;
+            }
+
+            const formData = new FormData();
+
+            formData.append("title", document.getElementById("title").value.trim());
+            formData.append("description", document.getElementById("description").value.trim());
+            formData.append("ingredients", JSON.stringify(ingredients));
+            formData.append("instructions", document.getElementById("instructions").value.trim());
+            formData.append("category", document.getElementById("category").value);
+            formData.append("cookingTime", document.getElementById("cookingTime").value);
+
+            const image = document.getElementById("image").files[0];
+
+            if (image) {
+                formData.append("image", image);
+            }
+
+            try {
+                const response = await fetch("/api/recipes", {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    },
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    message.textContent = data.message || "Unable to save recipe.";
+                    return;
+                }
+
+                message.textContent = "Recipe saved successfully!";
+                form.reset();
+            } catch (error) {
+                console.error(error);
+                message.textContent = "Server connection failed.";
+            }
+        });
+    </script>
+</body>
+</html>

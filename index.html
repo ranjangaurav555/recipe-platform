@@ -1,0 +1,219 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recipe Management Platform</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f5f6fa;
+            color: #222;
+        }
+
+        header {
+            background: #247a4b;
+            color: white;
+            padding: 22px;
+            text-align: center;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 25px auto;
+            padding: 0 16px;
+        }
+
+        .filters {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+
+        input, select, button {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 15px;
+        }
+
+        input {
+            flex: 1;
+            min-width: 180px;
+        }
+
+        button {
+            background: #247a4b;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #195e38;
+        }
+
+        #recipes {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px #00000012;
+        }
+
+        .card img {
+            width: 100%;
+            height: 190px;
+            object-fit: cover;
+            background: #e5e5e5;
+        }
+
+        .card-content {
+            padding: 16px;
+        }
+
+        .card h3 {
+            margin-top: 0;
+        }
+
+        .category {
+            color: #247a4b;
+            font-weight: bold;
+        }
+
+        #message {
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Recipe Management Platform</h1>
+        <p>Discover and explore delicious recipes</p>
+    </header>
+
+    <p style="text-align:center">
+    <a href="/add-recipe.html">+ Add New Recipe</a>
+</p>
+
+    <main class="container">
+        <div class="filters">
+            <input
+                type="text"
+                id="search"
+                placeholder="Search recipes..."
+            >
+
+            <select id="category">
+                <option value="">All Categories</option>
+                <option value="Breakfast">Breakfast</option>
+                <option value="Lunch">Lunch</option>
+                <option value="Dinner">Dinner</option>
+                <option value="Dessert">Dessert</option>
+            </select>
+
+            <button onclick="loadRecipes()">Search</button>
+        </div>
+
+        <p id="message">Loading recipes...</p>
+        <section id="recipes"></section>
+    </main>
+
+    <script>
+        const API_URL = "http://localhost:3000/api/recipes";
+
+        async function loadRecipes() {
+            const search = document.getElementById("search").value.trim();
+            const category = document.getElementById("category").value;
+            const message = document.getElementById("message");
+            const recipesContainer = document.getElementById("recipes");
+
+            recipesContainer.innerHTML = "";
+            message.textContent = "Loading recipes...";
+
+            const params = new URLSearchParams();
+
+            if (search) params.append("search", search);
+            if (category) params.append("category", category);
+
+            try {
+                const response = await fetch(
+                    `${API_URL}?${params.toString()}`
+                );
+
+                if (!response.ok) {
+                    throw new Error("Unable to load recipes");
+                }
+
+                const data = await response.json();
+
+                if (!data.recipes || data.recipes.length === 0) {
+                    message.textContent = "No recipes found.";
+                    return;
+                }
+
+                message.textContent = `${data.count} recipe(s) found.`;
+
+                data.recipes.forEach(recipe => {
+                    const card = document.createElement("article");
+                    card.className = "card";
+
+                    const image = document.createElement("img");
+                    image.alt = recipe.title || "Recipe image";
+                    image.src = recipe.imageUrl
+                        ? `http://localhost:3000${recipe.imageUrl}`
+                        : "https://placehold.co/600x400?text=Recipe";
+
+                    image.onerror = () => {
+                        image.onerror = null;
+                        image.src = "https://placehold.co/600x400?text=Recipe";
+                    };
+
+                    const content = document.createElement("div");
+                    content.className = "card-content";
+
+                    const title = document.createElement("h3");
+                    title.textContent = recipe.title;
+
+                    const description = document.createElement("p");
+                    description.textContent = recipe.description;
+
+                    const categoryText = document.createElement("p");
+                    categoryText.className = "category";
+                    categoryText.textContent = recipe.category;
+
+                    const time = document.createElement("p");
+                    time.textContent = `Cooking time: ${recipe.cookingTime} minutes`;
+
+                    const author = document.createElement("p");
+                    author.textContent = `By: ${recipe.User?.name || "Unknown"}`;
+
+                    content.append(title, description, categoryText, time, author);
+                    card.append(image, content);
+                    recipesContainer.appendChild(card);
+                });
+            } catch (error) {
+                message.textContent =
+                    "Could not load recipes. Please check whether the backend is running.";
+                console.error(error);
+            }
+        }
+
+        loadRecipes();
+    </script>
+
+</body>
+</html>
